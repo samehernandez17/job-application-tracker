@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% block title %}Applications{% endblock %}
+
+{% block content %}
+<h1>Applications</h1>
+{% set idata = application.interview_data or {} %}
+
+<h2>{{ 'Add Application' if mode == 'add' else 'Edit Application' }}</h2>
+{% if not jobs %}
+<p>Add a job first (Jobs page), then you can add applications.</p>
+{% else %}
+<form method="post" action="{{ url_for('add_application') if mode == 'add' else url_for('edit_application', application_id=application.application_id) }}">
+    <label for="job_id">Job <span class="required">*</span></label>
+    <select id="job_id" name="job_id">
+        <option value="">-- Select a job --</option>
+        {% for j in jobs %}
+        <option value="{{ j.job_id }}" {% if application.job_id | string == j.job_id | string %}selected{% endif %}>{{ j.job_title }} - {{ j.company_name }}</option>
+        {% endfor %}
+    </select>
+
+    <label for="application_date">Application date <span class="required">*</span></label>
+    <input type="date" id="application_date" name="application_date" value="{{ application.application_date or '' }}">
+
+    <label for="status">Status <span class="required">*</span></label>
+    <select id="status" name="status">
+        {% for s in statuses %}
+        <option value="{{ s }}" {% if application.status == s %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+    </select>
+
+    <label for="resume_version">Resume version</label>
+    <input type="text" id="resume_version" name="resume_version" maxlength="50" value="{{ application.resume_version or '' }}">
+
+    <label><input type="checkbox" name="cover_letter_sent" {% if application.cover_letter_sent %}checked{% endif %}> Cover letter sent</label>
+
+    <h3>Interview details (optional)</h3>
+
+    <label for="interview_interviewer">Interviewer</label>
+    <input type="text" id="interview_interviewer" name="interview_interviewer" maxlength="100" value="{{ idata.get('interviewer', '') }}">
+
+    <label for="interview_format">Format (phone, video, on-site)</label>
+    <input type="text" id="interview_format" name="interview_format" maxlength="50" value="{{ idata.get('format', '') }}">
+
+    <label for="interview_date">Interview date</label>
+    <input type="date" id="interview_date" name="interview_date" value="{{ idata.get('date', '') }}">
+
+    <label for="interview_notes">Interview notes</label>
+    <textarea id="interview_notes" name="interview_notes" maxlength="500">{{ idata.get('notes', '') }}</textarea>
+
+    <p>
+        <button type="submit">{{ 'Add Application' if mode == 'add' else 'Save Changes' }}</button>
+        {% if mode == 'edit' %}<a href="{{ url_for('applications') }}">Cancel</a>{% endif %}
+    </p>
+</form>
+{% endif %}
+
+<h2>All Applications</h2>
+{% if applications %}
+<table>
+    <tr><th>Job</th><th>Company</th><th>Applied</th><th>Status</th><th>Resume</th><th>Cover letter</th><th>Interview</th><th>Actions</th></tr>
+    {% for a in applications %}
+    <tr>
+        <td>{{ a.job_title }}</td>
+        <td>{{ a.company_name }}</td>
+        <td>{{ a.application_date }}</td>
+        <td>{{ a.status }}</td>
+        <td>{{ a.resume_version or '' }}</td>
+        <td>{{ 'Yes' if a.cover_letter_sent else 'No' }}</td>
+        <td>
+            {% if a.interview_data %}
+                {% for key, value in a.interview_data.items() %}
+                {{ key | capitalize }}: {{ value }}<br>
+                {% endfor %}
+            {% endif %}
+        </td>
+        <td>
+            <a href="{{ url_for('edit_application', application_id=a.application_id) }}">Edit</a>
+            <form class="inline" method="post" action="{{ url_for('delete_application', application_id=a.application_id) }}"
+                  onsubmit='return confirm({{ ("Delete your application for " ~ a.job_title ~ " at " ~ a.company_name ~ "?") | tojson }});'>
+                <button class="btn-danger" type="submit">Delete</button>
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+{% else %}
+<p>No applications yet.</p>
+{% endif %}
+{% endblock %}
