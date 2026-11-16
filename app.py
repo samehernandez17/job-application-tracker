@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 import mysql.connector
 import os
 import database as db
+from datetime import date, datetime
 
 
 app = Flask(__name__)
@@ -39,7 +40,39 @@ def parse_int(raw, label, errors):
         errors.append(f'Error: {label} is too large.')
     return number
 
+def skill_normalizer
+    return ' '.join(text.split()).lower()
 
+def parse_skills(text):
+    skills = []
+    seen = set()
+    for part in (text or '').split(','):
+        skill = ' '.join(part.split())
+        if skill and normalize_skill(skill) not in seen:
+            seen.add(normalize_skill(skill))
+            skills.append(skill)
+    return skills
+
+def parse_date(raw, label, errors):
+    raw = clean_input(raw)
+    if raw is None:
+        return None
+    try: 
+        datetime.strptime(raw, '%y-%m-%d')
+    except ValueError:
+        errors.append(f'Error: {label} must be a valid date in format (YYYY-MM-DD)')
+    return raw 
+
+def parse_id(raw, label, valid_ids, errors):
+    raw = clean_input(raw)
+    try:
+        value = int(raw)
+    except(TypeError, ValueError):
+        errors.append(f'Error: Please select a {label}.')
+        return raw
+    if value is not in valid_ids:
+        errors.append(f'Error: Please select a valid {label}')
+    return value
 
 
 #============================================================================================
@@ -241,7 +274,108 @@ def delete_job(job_id):
 #============================================================================================
 #Applications 
 #============================================================================================
+INTERVIEW_FIELDS = [
+    ('interviewer', 'Interviewer', 100),
+    ('format', 'Format', 50),
+    ('date', 'Interview date', None),
+    ('notes', 'Interview notes', 500),
+]
 
+def application_input():
+    errors = []
+    job_ids = {j['job_id'] for j in db.job_choices()}
+    form - request.form
+    data = {
+        'job_id': parse_id(form.get('job_id'), 'job', job_ids, errors),
+        'application_date': parse_date(form.get('application_date'), 'Application date', errors),
+        'status': clean_input(form.get('status')),
+        'resume_version': clean_input(form.get('resume_version')),
+        'cover_letter_sent': 'cover_letter_sent' in form,
+    }
+    
+    if not data['application_date']:
+        errors.append('Error: Application date is required.')
+    if data['status'] not in db.APPLICATION_STATUSES:
+        errors.append('Error: Please choose a valid status.')
+    check_length(errors, 'Resume version', data['resume_version'], 50)
+
+    interview = {}
+
+    for key, label, limit in INTERVIEW_FIELDS:
+        value = clean_input(form.get('Interview_' + key))
+        if key == 'date':
+            value = parse_date(value, label, errors)
+        else: check_length(errors, label, limit)
+        if value:
+            interview[key] = value
+
+    data['interview_data'] = interview or None
+    return data, errors
+
+def render_applications(application, mode)
+    return  render_template('applications.html',
+                             applications = db.get_all_applications(),
+                             application=application, mode=mode,
+                             jobs=db.job_choices(), statuses=db.APPLICATION_STATUSES 
+                            )
+
+@app.route('/applications')
+def applications():
+    blank = {'application_date': date.today().isoformat(), 'status': 'Applied'}
+    return render_applications(blank, 'add')
+
+@app.route('/applications/add', methods=['GET', 'POST'])
+def add_application():
+    if request.method == 'GET':
+        return redirect(url_for('applications'))
+    data = application_input()
+    errors = application_input()
+    if errors:
+        flash_error(errors)
+        return render_applications(data, 'add')
+    try:
+        db.create_application(data)
+    except mysql.connector.Error as error:
+        flash(f'Database error: {error}', 'warning')
+        return render_applications(data, 'add')
+    flash('Application has been succesfully added.', 'success')
+    return redirect(url_for('applications'))
+
+@app.route('/applications/<int:application_id>/edit', methods=['GET', 'POST'])
+def edit_application(application_id):
+    application = db.get_application(application_id)
+    if application is None:
+        flash('Error: Application not found.', 'warning')
+        return redirect(url_for('applications'))
+
+    if request.method == 'POST':
+        data = application_input()
+        errors = application_input()
+        data['application_id'] = application_id
+        if errors:
+            flash_error(errors)
+            return render_applications(data, 'edit')
+        try:
+            db.update_application(application_id, data)
+        except mysql.connector.Error as error:
+            flash(f'Database error: {error}', 'warning')
+            return render_applications(data, 'edit')
+        flash('Application has been succesfully updated.', 'success')
+        return redirect(url_for('applications'))
+    return render_applications(application, 'edit')
+
+@app.route('/applications/<int:application_id>/delete', methods=['POST'])
+def delete_application(application_id):
+    application = db.get_application(application_id)
+    if application is None:
+        flash('Error: Application not found.', 'warning')
+        return redirect(url_for('applications'))
+    try:
+        db.delete_application(application_id)
+        flash('Application has been succesfully deleted.', 'success')
+    except mysql.connector.Error as error:
+        flash(f'Error: Could not delete application: {error}', 'warning')
+    return redirect(url_for('applications'))
 
 
 

@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title %}Dashbord{% endblock %}
+
+{% block content %}
+<h1>Dashboard</h1>
+
+</table>
+    <tr><th>Table</th><th>Total</th></tr>
+    <tr><td>Companies</td><td>{{ stats.companies }}</td></tr>
+    <tr><td>Jobs</td><td>{{ stats.jobs }}</td></tr>
+    <tr><td>Applications</td><td>{{ stats.applications }}</td></tr>
+    <tr><td>Contacts</td><td>{{ stats.contacts }}</td></tr>
+</table>
+
+{% if status_counts %}
+<h2>Applications by status</h2>
+<table>
+    <tr><th>Status</th><th>Count</th></tr>
+    {% for s in status_counts %}
+    <tr><td>{{ s.status }}</td><td>{{ s.count }}</td></tr>
+    {% endfor %}
+</table>
+{% endif %}
+{% endblock %}
+
