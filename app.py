@@ -19,46 +19,47 @@ def clean_input(value):
     return value or None
 
 def flash_error(errors):
-    for error in errors:
-        flash(error, 'warning')
+    for msg in errors:
+        flash(msg, 'warning')
 
-def validate_length:
+def check_length(errors, label, value, limit):
     if value and len(value) > limit:
-        errors.append(f'{label} must be less than {"limit"} characters.')
+        errors.append(f'{label} must be less than {limit} characters.')
 
 def parse_int(raw, label, errors):
     raw = clean_input(raw)
     if raw is None:
         return None
     try:
-        number = int(raw)
+        num = int(raw)
     except ValueError:
         errors.append(f'Error: {label} must be a whole number')
-    if number < 0:
+        return raw
+    if num < 0:
         errors.append(f'Error: {label} cannot be a negative number')
-    if number > MAX_INT:
+    elif num > MAX_INT:
         errors.append(f'Error: {label} is too large.')
-    return number
+    return num
 
-def skill_normalizer
+def normalize_skill(text):
     return ' '.join(text.split()).lower()
 
 def parse_skills(text):
-    skills = []
+    found = []
     seen = set()
     for part in (text or '').split(','):
         skill = ' '.join(part.split())
         if skill and normalize_skill(skill) not in seen:
             seen.add(normalize_skill(skill))
-            skills.append(skill)
-    return skills
+            found.append(skill)
+    return found
 
 def parse_date(raw, label, errors):
     raw = clean_input(raw)
     if raw is None:
         return None
     try: 
-        datetime.strptime(raw, '%y-%m-%d')
+        datetime.strptime(raw, '%Y-%m-%d')
     except ValueError:
         errors.append(f'Error: {label} must be a valid date in format (YYYY-MM-DD)')
     return raw 
@@ -70,7 +71,7 @@ def parse_id(raw, label, valid_ids, errors):
     except(TypeError, ValueError):
         errors.append(f'Error: Please select a {label}.')
         return raw
-    if value is not in valid_ids:
+    if value not in valid_ids:
         errors.append(f'Error: Please select a valid {label}')
     return value
 
@@ -82,11 +83,12 @@ def parse_id(raw, label, valid_ids, errors):
 def dashboard():
     conn = db.get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute('''SELECT(SELECT COUNT(*) FROM companies)  AS compaies,
+    cursor.execute('''SELECT(SELECT COUNT(*) FROM companies)  AS companies,
                             (SELECT COUNT(*) FROM jobs)       AS jobs,
                             (SELECT COUNT(*) FROM applications) AS applications,
                             (SELECT COUNT(*) FROM contacts)   AS contacts
                         ''')
+    status_counts = cursor.fetchall()
     stats = cursor.fetchone()
     cursor.close()
     conn.close()
@@ -117,7 +119,7 @@ def validate_company(data):
         errors.append("Error: Please provide company name.")
     for field, limit in COMPANY_MAX.items():
         label = field.replace('_', ' ').capitalize()
-        errors.append(f'{label} must be less than {limit} characters')
+        check_length(errors, label, data[field], limit)
     return errors 
     
 
@@ -126,7 +128,7 @@ def companies():
     return render_companies({}, 'add')
 
 @app.route('/companies/add', methods=['GET', 'POST'])
-def create_company():
+def add_company():
     if request.method == 'GET':
         return redirect(url_for('companies'))
     data = company_input()
@@ -139,7 +141,7 @@ def create_company():
     except mysql.connector.Error as error:
         flash(f'Database error: {error}', 'warning')
         return  render_companies(data, 'add')
-    flash(f"Company '{data['company_name']}' has been added.", 'success')
+    flash(f"Company '{data['company_name']}' has been successfully added.", 'success')
     return redirect(url_for('companies'))
 
 @app.route('/companies/<int:company_id>/edit', methods=['GET', 'POST'])
@@ -161,7 +163,7 @@ def edit_company(company_id):
         except mysql.connector.Error as error:
             flash(f'Database error: {error}', 'warning')
             return render_companies(data, 'edit')
-        flash(f"Company '{data['company_name']}' has been updated.", 'success')
+        flash(f"Company '{data['company_name']}' has been  successfully updated.", 'success')
         return  redirect(url_for('companies'))
     return render_companies(company, 'edit')
 
@@ -170,9 +172,10 @@ def delete_company(company_id):
     company = db.get_company(company_id)
     if company is None:
         flash('Company could not be found. Try again', 'warning')
+        return redirect(url_for('companies'))
     try:
         db.delete_company(company_id)
-        flash(f"Company '{company['company_name']}' has been deleted", 'success')
+        flash(f"Company '{company['company_name']}' has been successfully deleted", 'success')
     except mysql.connector.Error as err:
         flash(f'Could not delete the requested company: {err}', 'warning')
     return redirect(url_for('companies'))
@@ -186,12 +189,12 @@ def job_input():
     company_ids = {c['company_id'] for c in db.company_choices()}
     form = request.form
     data = {
-        'company_id': parse_choice_id(form.get('company_id'), 'company', company_ids, errors),
+        'company_id': parse_id(form.get('company_id'), 'company', company_ids, errors),
         'job_title': clean_input(form.get('job_title')),
         'job_type': clean_input(form.get('job_type')),
         'salary_min': parse_int(form.get('salary_min'), 'Minimum salary', errors),
         'salary_max': parse_int(form.get('salary_max'), 'Maximum salary', errors),
-        'job_url': clean_input(form.get('job-url')),
+        'job_url': clean_input(form.get('job_url')),
         'date_posted': parse_date(form.get('date_posted'), 'Date posted', errors),
         'requirements': parse_skills(form.get('requirements')),    
     }
@@ -202,11 +205,11 @@ def job_input():
     check_length(errors, 'Job URL', data['job_url'], 300)
     if data['job_type'] and data['job_type'] not in db.JOB_TYPES:
         errors.append('Error: Please choose a valid job type')
-    if isinstance(data['salary_min'], int) and isinstance(data['salary_max'], int) and data['salary_min']>data['salary_max']
+    if isinstance(data['salary_min'], int) and isinstance(data['salary_max'], int) and data['salary_min']>data['salary_max']:
         errors.append('Error: minimum salary cannot be greater than maximum salary')
     
     return data, errors
-
+ 
 def render_jobs(job, mode):
     return render_template('jobs.html', jobs=db.get_all_jobs(), job=job,
      mode=mode, companies=db.company_choices(), job_types=db.JOB_TYPES)
@@ -220,8 +223,7 @@ def add_job():
     if request.method == 'GET':
         return redirect(url_for('jobs'))
     
-    data = job_input()
-    errors = job_input()
+    data, errors = job_input()
     if errors:
         flash_error(errors)
         return render_jobs(data, 'add')
@@ -231,7 +233,7 @@ def add_job():
     except mysql.connector.Error as error:
         flash(f'Database error: {error}', 'warning')
         return  render_jobs(data, 'add')
-    flash(f"Job '{data['job_title']}' has been succesfully added.", 'success')
+    flash(f"Job '{data['job_title']}' has been successfully added.", 'success')
     return redirect(url_for('jobs'))
 
 @app.route('/jobs/<int:job_id>/edit', methods=['GET', 'POST'])
@@ -239,11 +241,10 @@ def edit_job(job_id):
     job = db.get_job(job_id)
     if job is None:
         flash('Error: Job not found.', 'warning')
-          return redirect(url_for('jobs'))
+        return redirect(url_for('jobs'))
     
     if request.method == 'POST':
-        data = job_input()
-        errors = job_input()
+        data, errors = job_input()
         data['job_id'] = job_id
         if errors:
             flash_error(errors)
@@ -256,6 +257,7 @@ def edit_job(job_id):
         return redirect(url_for('jobs'))
     return render_jobs(job, 'edit')
 
+@app.route('/jobs/<int:job_id>/delete', methods=['POST'])
 def delete_job(job_id):
     job = db.get_job(job_id)
     if job is None:
@@ -264,8 +266,8 @@ def delete_job(job_id):
     
     try:
         db.delete_job(job_id)
-        flash(f"Job '{job['job_title']}' has been succcesfully deleted.", 'success')
-        except mysql.connector.Error as error:
+        flash(f"Job '{job['job_title']}' has been succesfully deleted.", 'success')
+    except mysql.connector.Error as error:
         flash(f'Error: Could not delete {error}', 'warning')
     return redirect(url_for('jobs'))
 
@@ -284,7 +286,7 @@ INTERVIEW_FIELDS = [
 def application_input():
     errors = []
     job_ids = {j['job_id'] for j in db.job_choices()}
-    form - request.form
+    form = request.form
     data = {
         'job_id': parse_id(form.get('job_id'), 'job', job_ids, errors),
         'application_date': parse_date(form.get('application_date'), 'Application date', errors),
@@ -299,20 +301,20 @@ def application_input():
         errors.append('Error: Please choose a valid status.')
     check_length(errors, 'Resume version', data['resume_version'], 50)
 
-    interview = {}
+    interview_info = {}
 
     for key, label, limit in INTERVIEW_FIELDS:
-        value = clean_input(form.get('Interview_' + key))
+        value = clean_input(form.get('interview_' + key))
         if key == 'date':
             value = parse_date(value, label, errors)
-        else: check_length(errors, label, limit)
+        else: check_length(errors, label, value, limit)
         if value:
-            interview[key] = value
+            interview_info[key] = value
 
-    data['interview_data'] = interview or None
+    data['interview_data'] = interview_info or None
     return data, errors
 
-def render_applications(application, mode)
+def render_applications(application, mode):
     return  render_template('applications.html',
                              applications = db.get_all_applications(),
                              application=application, mode=mode,
@@ -328,8 +330,7 @@ def applications():
 def add_application():
     if request.method == 'GET':
         return redirect(url_for('applications'))
-    data = application_input()
-    errors = application_input()
+    data, errors = application_input()
     if errors:
         flash_error(errors)
         return render_applications(data, 'add')
@@ -338,7 +339,7 @@ def add_application():
     except mysql.connector.Error as error:
         flash(f'Database error: {error}', 'warning')
         return render_applications(data, 'add')
-    flash('Application has been succesfully added.', 'success')
+    flash('Application has been successfully added.', 'success')
     return redirect(url_for('applications'))
 
 @app.route('/applications/<int:application_id>/edit', methods=['GET', 'POST'])
@@ -349,8 +350,7 @@ def edit_application(application_id):
         return redirect(url_for('applications'))
 
     if request.method == 'POST':
-        data = application_input()
-        errors = application_input()
+        data, errors = application_input()
         data['application_id'] = application_id
         if errors:
             flash_error(errors)
@@ -360,7 +360,7 @@ def edit_application(application_id):
         except mysql.connector.Error as error:
             flash(f'Database error: {error}', 'warning')
             return render_applications(data, 'edit')
-        flash('Application has been succesfully updated.', 'success')
+        flash('Application has been successfully updated.', 'success')
         return redirect(url_for('applications'))
     return render_applications(application, 'edit')
 
@@ -372,7 +372,7 @@ def delete_application(application_id):
         return redirect(url_for('applications'))
     try:
         db.delete_application(application_id)
-        flash('Application has been succesfully deleted.', 'success')
+        flash('Application has been successfully deleted.', 'success')
     except mysql.connector.Error as error:
         flash(f'Error: Could not delete application: {error}', 'warning')
     return redirect(url_for('applications'))
@@ -382,7 +382,90 @@ def delete_application(application_id):
 #============================================================================================
 #Contacts
 #============================================================================================
+def contact_input():
+    errors = []
+    company_ids = {c['company_id'] for c in db.company_choices()}
+    form = request.form
+    data = {
+        'company_id': parse_id(form.get('company_id'), 'company', company_ids, errors),
+        'contact_name': clean_input(form.get('contact_name')),
+        'title': clean_input(form.get('title')),
+        'email': clean_input(form.get('email')),
+        'phone': clean_input(form.get('phone')),
+        'linkedin_url': clean_input(form.get('linkedin_url')),
+        'notes': clean_input(form.get('notes')),
+    }
+    if not data['contact_name']:
+        errors.append('Error: Contact name is required.')
+    check_length(errors, 'Contact name', data['contact_name'], 100)
+    check_length(errors, 'Title', data['title'], 100)
+    check_length(errors, 'Email', data['email'], 100)
+    check_length(errors, 'Phone', data['phone'], 20)
+    check_length(errors, 'LinkedIn URL', data['linkedin_url'], 200)
+    email = data['email']
+    if email and ('@' not in email or '.' not in email.split('@')[-1] or ' ' in email):
+        errors.append('Error: Please enter a valid email address.')
+    return data, errors
 
+def render_contacts(contact, mode):
+    return render_template('contacts.html', contacts=db.get_all_contacts(),
+                           contact=contact, mode=mode, companies=db.company_choices())
+
+
+@app.route('/contacts')
+def contacts():
+    return render_contacts({}, 'add')
+
+@app.route('/contacts/add', methods=['GET', 'POST'])
+def add_contact():
+    if request.method == 'GET':
+        return redirect(url_for('contacts'))
+    data, errors = contact_input()
+    if errors:
+        flash_error(errors)
+        return render_contacts(data, 'add')
+    try:
+        db.create_contact(data)
+    except mysql.connector.Error as error:
+        flash(f'Database error: {error}', 'warning')
+        return render_contacts(data, 'add')
+    flash(f"Contact '{data['contact_name']}' has been successfully added.", 'success')
+    return redirect(url_for('contacts'))
+
+@app.route('/contacts/<int:contact_id>/edit', methods=['GET', 'POST'])
+def edit_contact(contact_id):
+    contact = db.get_contact(contact_id)
+    if contact is None:
+        flash('Error: Contact not found.', 'warning')
+        return redirect(url_for('contacts'))
+
+    if request.method == 'POST':
+        data, errors = contact_input()
+        data['contact_id'] = contact_id
+        if errors:
+            flash_error(errors)
+            return render_contacts(data, 'edit')
+        try:
+            db.update_contact(contact_id, data)
+        except mysql.connector.Error as error:
+            flash(f'Database error: {error}', 'warning')
+            return render_contacts(data, 'edit')
+        flash(f"Contact '{data['contact_name']}' has been successfully updated.", 'success')
+        return redirect(url_for('contacts'))
+    return render_contacts(contact, 'edit')
+
+@app.route('/contacts/<int:contact_id>/delete', methods=['POST'])
+def delete_contact(contact_id):
+    contact = db.get_contact(contact_id)
+    if contact is None:
+        flash('Error: Contact not found.', 'warning')
+        return redirect(url_for('contacts'))
+    try:
+        db.delete_contact(contact_id)
+        flash(f"Contact '{contact['contact_name']}' has been successfully deleted.", 'success')
+    except mysql.connector.Error as error:
+        flash(f'Error: Could not delete contact: {error}', 'warning')
+    return redirect(url_for('contacts'))
 
 
 
@@ -391,27 +474,49 @@ def delete_application(application_id):
 #Job Match: Main logic 
 #============================================================================================
 
+def match_jobs(user_skills):
+    have = {normalize_skill(skill) for skill in user_skills}
+    results, skipped = [], 0
+
+    for job in db.get_all_jobs():
+        required = job['requirements']
+        if not required:
+            skipped += 1
+            continue
+        matching = [r for r in required if normalize_skill(r) in have]
+        missing = [r for r in required if normalize_skill(r) not in have]
+        pcnt = int(len(matching) * 100 / len(required) + 0.5)
+        results.append({
+            'job_id': job['job_id'],
+            'job_title': job['job_title'],
+            'company_name': job['company_name'],
+            'percent': pcnt,
+            'matched': matching,
+            'missing': missing,
+            'total': len(required),
+        })
+
+    results.sort(key=lambda r: (-r['percent'], r['job_title'].lower()))
+    return results, skipped
 
 
+@app.route('/job-match', methods=['GET', 'POST'])
+def job_match():
+    skills_text = ''
+    user_skills = []
+    results = None
+    skipped = 0
 
+    if request.method == 'POST':
+        skills_text = request.form.get('skills', '')
+        user_skills = parse_skills(skills_text)
+        if not user_skills:
+            flash('Enter at least one skill, separated by commas.', 'warning')
+        else:
+            results, skipped = match_jobs(user_skills)
 
-
-
-
-
-
-    
-
-
-
-
-
-
-
-
-
-
-
+    return render_template('job_match.html', skills_text=skills_text,
+                           user_skills=user_skills, results=results, skipped=skipped)
 
 
 
