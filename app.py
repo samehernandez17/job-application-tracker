@@ -88,10 +88,20 @@ def dashboard():
                             (SELECT COUNT(*) FROM applications) AS applications,
                             (SELECT COUNT(*) FROM contacts)   AS contacts
                         ''')
-    status_counts = cursor.fetchall()
+    
     stats = cursor.fetchone()
+
+    cursor.execute('''
+        SELECT status, COUNT(*) AS count
+        FROM applications
+        GROUP BY status
+    ''')
+
+    status_counts = cursor.fetchall()
+    
     cursor.close()
     conn.close()
+    
     return render_template('dashboard.html', stats=stats, status_counts =status_counts)
 
  
