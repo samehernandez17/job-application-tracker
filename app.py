@@ -95,6 +95,7 @@ def dashboard():
         SELECT status, COUNT(*) AS count
         FROM applications
         GROUP BY status
+        ORDER BY status
     ''')
 
     status_counts = cursor.fetchall()
@@ -173,7 +174,7 @@ def edit_company(company_id):
         except mysql.connector.Error as error:
             flash(f'Database error: {error}', 'warning')
             return render_companies(data, 'edit')
-        flash(f"Company '{data['company_name']}' has been  successfully updated.", 'success')
+        flash(f"Company '{data['company_name']}' has been successfully updated.", 'success')
         return  redirect(url_for('companies'))
     return render_companies(company, 'edit')
 
@@ -263,7 +264,7 @@ def edit_job(job_id):
         except mysql.connector.Error as error:
             flash(f'Database error: {error}', 'warning')
             return render_jobs(data, 'edit')
-        flash(f"Job '{data['job_title']}' has been succesfully updated.", 'success')
+        flash(f"Job '{data['job_title']}' has been successfully updated.", 'success')
         return redirect(url_for('jobs'))
     return render_jobs(job, 'edit')
 
@@ -276,7 +277,7 @@ def delete_job(job_id):
     
     try:
         db.delete_job(job_id)
-        flash(f"Job '{job['job_title']}' has been succesfully deleted.", 'success')
+        flash(f"Job '{job['job_title']}' has been successfully deleted.", 'success')
     except mysql.connector.Error as error:
         flash(f'Error: Could not delete {error}', 'warning')
     return redirect(url_for('jobs'))
