@@ -4,18 +4,33 @@
 {% block content %}
 <h1>Dashboard</h1>
 
-<table>
-    <tr><th>Table</th><th>Total</th></tr>
-    <tr><td>Companies</td><td>{{ stats.companies }}</td></tr>
-    <tr><td>Jobs</td><td>{{ stats.jobs }}</td></tr>
-    <tr><td>Applications</td><td>{{ stats.applications }}</td></tr>
-    <tr><td>Contacts</td><td>{{ stats.contacts }}</td></tr>
-</table>
+<div class="stats">
+        <div class="title">
+        <h3>Companies</h3>
+        <p>{{ stats.companies }}</p>
+    </div>
+
+    <div class="title">
+        <h3>Jobs</h3>
+        <p>{{ stats.jobs }}</p>
+    </div>
+
+    <div class="title">
+        <h3>Applications</h3>
+        <p>{{ stats.applications }}</p>
+    </div>
+
+    <div class="title">
+        <h3>Contacts</h3>
+        <p>{{ stats.contacts }}</p>
+    </div>
+
+</div>
 
 {% if status_counts %}
-<h2>Applications by status</h2>
+<h2>Application Statuses</h2>
 <table>
-    <tr><th>Status</th><th>Count</th></tr>
+    <tr><th>Status</th><th>Qty</th></tr>
     {% for s in status_counts %}
     <tr><td>{{ s.status }}</td><td>{{ s.count }}</td></tr>
     {% endfor %}

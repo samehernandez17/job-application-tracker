@@ -4,80 +4,129 @@
 {% block content %}
 <h1>Jobs</h1>
 
-<h2>{{ 'Add Job' if mode == 'add' else 'Edit Job' }}</h2>
-{% if not companies %}
-<p>Add a company first (Companies page), then you can add jobs.</p>
-{% else %}
-<form method="post" action="{{ url_for('add_job') if mode == 'add' else url_for('edit_job', job_id=job.job_id) }}">
-    <label for="company_id">Company <span class="required">*</span></label>
-    <select id="company_id" name="company_id">
-        <option value="">-- Select a company --</option>
-        {% for c in companies %}
-        <option value="{{ c.company_id }}" {% if job.company_id | string ==  c.company_id | string %}selected{% endif %}>{{ c.company_name }}</option>
-        {% endfor %}
-    </select>
-
-    <label for="job_title">Job title <span class="required">*</span></label>
-    <input type="text" id="job_title" name="job_title" maxlength="100" value="{{ job.job_title or '' }}">
-
-    <label for="job_type">Job type</label>
-    <select id="job_type" name="job_type">
-        <option value="">-- Not specified --</option>
-        {% for t in job_types %}
-        <option value="{{ t }}" {% if job.job_type == t %}selected{% endif %}>{{ t }}</option>
-        {% endfor %}
-    </select>
-
-    <label for="salary_min">Minimum salary</label>
-    <input type="number" id="salary_min" name="salary_min" min="0" value="{{ job.salary_min if job.salary_min is not none else '' }}">
-
-    <label for="salary_max">Maximum salary</label>
-    <input type="number" id="salary_max" name="salary_max" min="0" value="{{ job.salary_max if job.salary_max is not none else '' }}">
-
-    <label for="job_url">Job posting URL</label>
-    <input type="text" id="job_url" name="job_url" maxlength="300" value="{{ job.job_url or '' }}">
-
-    <label for="date_posted">Date posted</label>
-    <input type="date" id="date_posted" name="date_posted" value="{{ job.date_posted or '' }}">
-
-    <label for="requirements">Required skills (separate with commas)</label>
-    <input type="text" id="requirements" name="requirements" placeholder="Python, SQL, Flask"
-           value="{{ (job.requirements or []) | join(', ') }}">
-
-    <p>
-        <button type="submit">{{ 'Add Job' if mode == 'add' else 'Save Changes' }}</button>
-        {% if mode == 'edit' %}<a href="{{ url_for('jobs') }}">Cancel</a>{% endif %}
-    </p>
-</form>
-{% endif %}
+{% set job_data = job|default({}) %}
 
 <h2>All Jobs</h2>
+
 {% if jobs %}
 <table>
-    <tr><th>Title</th><th>Company</th><th>Type</th><th>Salary</th><th>Posted</th><th>Requirements</th><th>Actions</th></tr>
+    <tr>
+        <th>Title</th>
+        <th>Company</th>
+        <th>Type</th>
+        <th>Salary</th>
+        <th>Posted</th>
+        <th>Requirements</th>
+        <th>Actions</th>
+    </tr>
+
     {% for j in jobs %}
     <tr>
         <td>{{ j.job_title }}</td>
         <td>{{ j.company_name }}</td>
         <td>{{ j.job_type or '' }}</td>
         <td>
-            {% if j.salary_min or j.salary_max %}
-                {{ '${:,}'.format(j.salary_min) if j.salary_min else '?' }} - {{ '${:,}'.format(j.salary_max) if j.salary_max else '?' }}
+            {% if j.salary_min is not none or j.salary_max is not none %}
+                {{ '${:,}'.format(j.salary_min) if j.salary_min is not none else '?' }}
+                -
+                {{ '${:,}'.format(j.salary_max) if j.salary_max is not none else '?' }}
             {% endif %}
         </td>
         <td>{{ j.date_posted or '' }}</td>
         <td>{{ j.requirements | join(', ') }}</td>
         <td>
             <a href="{{ url_for('edit_job', job_id=j.job_id) }}">Edit</a>
-            <form class="inline" method="post" action="{{ url_for('delete_job', job_id=j.job_id) }}"
-                  onsubmit='return confirm({{ ("Delete " ~ j.job_title ~ " at " ~ j.company_name ~ "? Its applications will also be deleted.") | tojson }});'>
+
+            <form class="inline" method="post"
+                  action="{{ url_for('delete_job', job_id=j.job_id) }}"
+                  onsubmit="return confirm(this.dataset.confirm);"
+                  data-confirm="Are you sure you want to delete {{ j.job_title }} at {{ j.company_name }}? Its applications will also be deleted.">
+
                 <button class="btn-danger" type="submit">Delete</button>
             </form>
         </td>
     </tr>
     {% endfor %}
 </table>
+
 {% else %}
 <p>No jobs yet.</p>
 {% endif %}
+
+
+<h2>{{ 'Add Job' if mode == 'add' else 'Edit Job' }}</h2>
+
+{% if not companies %}
+<p>Add a company first (Companies page), then you can add jobs.</p>
+
+{% else %}
+<form method="post"
+      action="{{ url_for('add_job') if mode == 'add' else url_for('edit_job', job_id=job_data.job_id) }}">
+
+    <label for="company_id">Company <span class="required">*</span></label>
+    <select id="company_id" name="company_id">
+        <option value=""> Select company </option>
+
+        {% for c in companies %}
+        <option value="{{ c.company_id }}"
+            {% if (job_data.company_id|string) == (c.company_id|string) %}selected{% endif %}>
+            {{ c.company_name }}
+        </option>
+        {% endfor %}
+    </select>
+
+    <label for="job_title">Job title <span class="required">*</span></label>
+    <input type="text" id="job_title" name="job_title"
+           maxlength="100"
+           value="{{ job_data.job_title or '' }}">
+
+    <label for="job_type">Job type</label>
+    <select id="job_type" name="job_type">
+        <option value=""> Not specified </option>
+
+        {% for t in job_types %}
+        <option value="{{ t }}"
+            {% if job_data.job_type == t %}selected{% endif %}>
+            {{ t }}
+        </option>
+        {% endfor %}
+    </select>
+
+    <label for="salary_min">Minimum salary</label>
+    <input type="number" id="salary_min" name="salary_min"
+           min="0"
+           value="{{ job_data.salary_min if job_data.salary_min is defined and job_data.salary_min is not none else '' }}">
+
+    <label for="salary_max">Maximum salary</label>
+    <input type="number" id="salary_max" name="salary_max"
+           min="0"
+           value="{{ job_data.salary_max if job_data.salary_max is defined and job_data.salary_max is not none else '' }}">
+
+    <label for="job_url">Job posting URL</label>
+    <input type="text" id="job_url" name="job_url"
+           maxlength="300"
+           value="{{ job_data.job_url or '' }}">
+
+    <label for="date_posted">Date posted</label>
+    <input type="date" id="date_posted" name="date_posted"
+           value="{{ job_data.date_posted or '' }}">
+
+    <label for="requirements">Required skills ( Please separate with commas)</label>
+    <input type="text" id="requirements" name="requirements"
+           placeholder="Python, SQL, Flask"
+           value="{{ (job_data.requirements or []) | join(', ') }}">
+
+    <p>
+        <button type="submit">
+            {{ 'Add Job' if mode == 'add' else 'Save Changes' }}
+        </button>
+
+        {% if mode == 'edit' %}
+        <a href="{{ url_for('jobs') }}">Cancel</a>
+        {% endif %}
+    </p>
+
+</form>
+{% endif %}
+
 {% endblock %}

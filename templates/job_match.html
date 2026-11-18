@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}Job Match{% endblock %}
+
+{% block content %}
+<h1>Job Match</h1>
+<p>Enter the skills you have, separated by commas, and we will see how well you match each job.</p>
+
+<form method="post">
+    <label for="skills">Your skills</label>
+    <input type="text" id="skills" name="skills" placeholder="Python, SQL, Flask" value="{{ skills_text }}">
+    <p><button type="submit">Find matches</button></p>
+</form>
+
+{% if results is not none %}
+<h2>Results</h2>
+<p>Your skills: {{ user_skills | join(', ') }}</p>
+
+{% if results %}
+    {% for r in results %}
+    <div class="match">
+        <strong>{{ r.job_title }} at {{ r.company_name }}</strong><br>
+        {{ r.percent }}% match ({{ r.matched | length }}/{{ r.total }} skills)<br>
+        Skills matched: {{ r.matched | join(', ') if r.matched else 'None' }}<br>
+        Skills Missing: {{ r.missing | join(', ') if r.missing else 'None' }}
+    </div>
+    {% endfor %}
+{% else %}
+    <p>No jobs with listed requirements to compare against.</p>
+{% endif %}
+
+{% if skipped %}
+<p>{{ skipped }} job(s) were skipped because they have no requirements listed.</p>
+{% endif %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% block title %}Contacts{% endblock %}
+
+{% block content %}
+<h1>Contacts</h1>
+
+
+<h2>All Contacts</h2>
+
+{% if contacts %}
+<table>
+    <tr>
+        <th>Name</th>
+        <th>Title</th>
+        <th>Company</th>
+        <th>Email</th>
+        <th>Phone</th>
+        <th>LinkedIn</th>
+        <th>Notes</th>
+        <th>Actions</th>
+    </tr>
+
+    {% for c in contacts %}
+    <tr>
+        <td>{{ c.contact_name }}</td>
+        <td>{{ c.title or '' }}</td>
+        <td>{{ c.company_name }}</td>
+        <td>{{ c.email or '' }}</td>
+        <td>{{ c.phone or '' }}</td>
+        <td>{{ c.linkedin_url or '' }}</td>
+        <td>{{ c.notes or '' }}</td>
+        <td>
+            <a href="{{ url_for('edit_contact', contact_id=c.contact_id) }}">Edit</a>
+
+            <form class="inline"
+                  method="post"
+                  action="{{ url_for('delete_contact', contact_id=c.contact_id) }}"
+                  onsubmit="return confirm(this.dataset.confirm);"
+                  data-confirm="Are you sure you want to delete {{ c.contact_name }}?">
+
+                <button class="btn-danger" type="submit">Delete</button>
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+
+{% else %}
+<p>No contacts yet.</p>
+{% endif %}
+
+
+<h2>{{ 'Add Contact' if mode == 'add' else 'Edit Contact' }}</h2>
+
+{% if not companies %}
+<p>Add a company first (Companies page), then you can add contacts.</p>
+
+{% else %}
+<form method="post"
+      action="{{ url_for('add_contact') if mode == 'add' else url_for('edit_contact', contact_id=contact.contact_id) }}">
+
+    <label for="company_id">Company <span class="required">*</span></label>
+    <select id="company_id" name="company_id" required>
+        <option value=""> Select a company </option>
+
+        {% for c in companies %}
+        <option value="{{ c.company_id }}"
+            {% if contact.company_id | string == c.company_id | string %}selected{% endif %}>
+            {{ c.company_name }}
+        </option>
+        {% endfor %}
+    </select>
+
+    <label for="contact_name">Contact name <span class="required">*</span></label>
+    <input type="text" id="contact_name" name="contact_name"
+           maxlength="100" required
+           value="{{ contact.contact_name or '' }}">
+
+    <label for="title">Title</label>
+    <input type="text" id="title" name="title"
+           maxlength="100"
+           value="{{ contact.title or '' }}">
+
+    <label for="email">Email</label>
+    <input type="email" id="email" name="email"
+           maxlength="100"
+           value="{{ contact.email or '' }}">
+
+    <label for="phone">Phone</label>
+    <input type="text" id="phone" name="phone"
+           maxlength="20"
+           value="{{ contact.phone or '' }}">
+
+    <label for="linkedin_url">LinkedIn URL</label>
+    <input type="text" id="linkedin_url" name="linkedin_url"
+           maxlength="200"
+           value="{{ contact.linkedin_url or '' }}">
+
+    <label for="notes">Notes</label>
+    <textarea id="notes" name="notes">{{ contact.notes or '' }}</textarea>
+
+    <p>
+        <button type="submit">
+            {{ 'Add Contact' if mode == 'add' else 'Save Changes' }}
+        </button>
+
+        {% if mode == 'edit' %}
+        <a href="{{ url_for('contacts') }}">Cancel</a>
+        {% endif %}
+    </p>
+</form>
+{% endif %}
+
+{% endblock %}

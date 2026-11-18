@@ -262,7 +262,7 @@ def delete_job(job_id):
     job = db.get_job(job_id)
     if job is None:
         flash('Error: Job not found.', 'warning')
-          return redirect(url_for('jobs'))
+        return redirect(url_for('jobs'))
     
     try:
         db.delete_job(job_id)
